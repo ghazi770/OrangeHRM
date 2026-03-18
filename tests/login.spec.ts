@@ -1,26 +1,42 @@
-import { test, expect } from '@playwright/test'
-import { LoginPage } from '../Pages/LoginPage'
-import { loginData } from '../TestData/loginData'
+import { test, expect, Page } from '@playwright/test';
+import { LoginPage } from '../Pages/LoginPage';
 
-loginData.forEach(data => {
+test.describe('Login Scenarios', () => {
+  let loginPage: LoginPage;
 
-  test(`Login Test: ${data.scenario}`, async ({ page }) => {
+  // Runs before each test: create a fresh page and navigate
+  test.beforeEach(async ({ page }) => {
+    loginPage = new LoginPage(page);
+    await loginPage.gotoLoginPage();
+  });
 
-    const loginPage = new LoginPage(page)
+  // ✅ Valid Login
+  test('Valid Login', async ({ page }) => {
+    await loginPage.login('Admin', 'admin123');
 
-    await loginPage.gotoLoginPage()
+    // Wait for the Dashboard to be visible
+    const dashboardHeading = page.locator('text=Dashboard').first();
+    await dashboardHeading.waitFor({ state: 'visible', timeout: 10000 });
+    await expect(dashboardHeading).toBeVisible();
+  });
 
-    await loginPage.login(data.username, data.password)
+  // ✅ Invalid Username
+  test('Invalid Username', async ({ page }) => {
+    await loginPage.login('wrongUser', 'admin123');
 
-    if (data.expected === 'success') {
-      await expect(page.url()).toContain('dashboard');
-    }
+    // Wait for error alert and check text
+    await loginPage.error_alert.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(loginPage.error_alert).toBeVisible();
+    await expect(loginPage.error_alert).toContainText('Invalid credentials');
+  });
 
-    if (data.expected === 'error') {
-      await expect(loginPage.error_user).toBeVisible()
-      await expect(loginPage.error_password).toBeVisible()
-    }
+  // ✅ Invalid Password
+  test('Invalid Password', async ({ page }) => {
+    await loginPage.login('Admin', 'wrong123');
 
-  })
-
-})
+    // Wait for error alert and check text
+    await loginPage.error_alert.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(loginPage.error_alert).toBeVisible();
+    await expect(loginPage.error_alert).toContainText('Invalid credentials');
+  });
+});
